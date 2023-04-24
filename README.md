@@ -7,17 +7,17 @@ divided into cells by an algorithm which resembles the output of the Boustrophed
 ![path coverage demonstration](https://gitlab.com/Humpelstilzchen/path_coverage_ros/-/raw/master/images/path_coverage.gif)
 
 ## Requirements
-- ROS1 Noetic with configured navigation stack that is tuned to drive close to obstacles and to follow a given goal as straight as possible.
-- rospy - as the main script is written in Python 3 
+- ROS2 humble or galactic "tested on humble"
 - python-shapely
 - python-numpy
-- ruby for the Boustrophedon Decomposition
+- ruby for the Boustrophedon Decomposition: $ sudo apt-get install ruby-full
 
 ## Usage
 1. Start the navigation stack for your robot with move\_base
 2. Launch path coverage:
 
-    roslaunch path\_coverage path\_coverage.launch
+TERMINAL-ROS2: source /opt/ros/humble/setup.bash; source ros2_ws/install/setup.bash; ros2 launch path_coverage path_coverage.launch.py
+
 3. Open RViz, add a *Marker plugin* and set the topic to "path\_coverage\_marker"
 4. On the map in RViz, think of a region that you like the robot to cover
 5. Click *Publish Point* at the top of RViz
@@ -71,12 +71,8 @@ It is recommended to set the following parameters of move base to false for the 
 * make\_plan\_add\_unreachable\_goal
 
 ## Author
-Erik Andresen - erik@vontaene.de
-
-Please contact me for bugs or any suggestions
-
-## License/Copyright
-LGPL
+ROS1: Erik Andresen - erik@vontaene.de
+ROS2:  Azeez Adebayo - hazeezadebayo@gmail.com
 
 ## TODO
 * The areas to cover needs to be ordered more intelligently (travelling salesman problem)
