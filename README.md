@@ -35,12 +35,9 @@ The node that executes the Boustrophedon Decomposition, calculates the back and 
 * "/move\_base/global\_costmap/costmap" - To detect obstacles in path
 * "/move\_base/local\_costmap/costmap" - To detect obstacles in path
 
-#### Published Topics
-#### Actions Called
-* "move\_base" - To execute the path
+#### Output
+* "pose_output.yaml" - in the home directory. contains waypoints.
 
-#### Services Called
-* "/move\_base/make\_plan" - To check the path before execution
 
 ### Parameters
 * boustrophedon\_decomposition (bool, default: true)
@@ -63,12 +60,11 @@ The node that executes the Boustrophedon Decomposition, calculates the back and 
 
 > The robots base frame
 
-## Additional notes
-It is recommended to set the following parameters of move base to false for the make\_plan service to work correctly with this node:
+* global\_frame (string, default: "map")
 
-* make\_plan\_clear\_costmap
+> The robots global frame
 
-* make\_plan\_add\_unreachable\_goal
+
 
 ## Author
 ROS1: Erik Andresen - erik@vontaene.de
