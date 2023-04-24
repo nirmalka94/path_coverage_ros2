@@ -121,7 +121,7 @@ class MapDrive(Node):
 		self.tfBuffer = Buffer()
 		self.tf_listener = TransformListener(self.tfBuffer, self)
 
-		self.get_logger().info("Got move_base action server Running..")
+		self.get_logger().info("Path coverage node running..")
 	
 
 
@@ -686,9 +686,25 @@ class MapDrive(Node):
 	def write_pose(self, x, y, angle):
 		self.get_logger().info("Moving to (%f, %f, %.0f)" % (x, y, angle*180/pi))
 
+		angle_quat = self.euler_to_quaternion(angle,0,0)
+
 		# Append the values to the data dictionary with the index as the key
 		index = len(self.pose_output) + 1
-		self.pose_output[index] = {"pose_x": x, "pose_y": y, "pose_z": angle}
+		self.pose_output[index] = {
+                                "position":
+                                {
+                                    "x": x,
+                                    "y": y,
+                                    "z": 0.0
+                                },
+                                "orientation":
+                                {
+                                    "w": angle_quat[3],
+                                    "x": angle_quat[0],
+                                    "y": angle_quat[1],
+                                    "z": angle_quat[2]
+                                },
+                            } 
 
 		# Write the data to the YAML file
 		with open(self.filename, "w") as f:
