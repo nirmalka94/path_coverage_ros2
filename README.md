@@ -1,4 +1,4 @@
-# Path Coverage for ROS
+# Path Coverage for ROS2
 
 Path coverage is needed for applications like cleaning or mowing where an environment must be fully covered by a robot.
 This ROS package executes a coverage path for a given area. The area to cover is given by a polygon which points are set from RViz with "Publish Point". When a successive point equals the first point the area of the polygon is 
