@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
 
 
-
-
-
-# . /usr/bin/python3 /home/hazeezadebayo/colcon_ws/src/nav2_rosdevday_2021/nav2_rosdevday_2021/scripts/fm_client_publisher.py
-# /usr/bin/python3 /home/hazeezadebayo/colcon_ws/src/gui/main.py
-# export ROS_DOMAIN_ID=2
-
+# ----------- be careful!! export ROS_DOMAIN_ID=2
 # . /usr/share/gazebo/setup.sh; source /opt/ros/humble/setup.bash; source ros2_ws/install/setup.bash; ros2 launch path_coverage path_coverage.launch.py
 
 
