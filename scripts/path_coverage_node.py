@@ -80,7 +80,7 @@ class MapDrive(Node):
 		self.rospack  = get_package_share_directory('path_coverage') 
 
 		# Define the file name for the YAML file
-		self.filename = "/home/hazeezadebayo/ros2_ws/src/robovak2_test/params/full_path_cov_poses.yaml" # "pose_output.yaml"
+		self.filename =   # "/home/hazeezadebayo/ros2_ws/src/robovak2_test/params/full_path_cov_poses.yaml" # "pose_output.yaml"
 
 		# Initialize 
 		self.pose_output = {}
@@ -341,6 +341,9 @@ class MapDrive(Node):
 
 
 	def find_connected_polygons(self, Polygons):
+
+		if len(Polygons) <= 2:
+			return Polygons
 
 		polygons = self.make_Polygons_shapely_polygons(Polygons)
 
