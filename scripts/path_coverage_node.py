@@ -378,7 +378,7 @@ class MapDrive(Node):
 			# visited = set()
 			parent_children = {}
 			for pair in connected_polygons:
-				print(pair)
+				# print(pair)
 
 				# if you wanna use parent grandparent format
 				# '''
@@ -442,7 +442,7 @@ class MapDrive(Node):
 
 				
 			# print("order: ", order)
-			self.get_logger().info('order: ' + str(order) + '.')
+			# self.get_logger().info('order: ' + str(order) + '.')
 
 			'''
 			new_order = []
@@ -462,7 +462,7 @@ class MapDrive(Node):
 
 			order = []
 			# print("new_order: ", new_order)
-			self.get_logger().info('new_order: ' + str(new_order) + '.')
+			# self.get_logger().info('new_order: ' + str(new_order) + '.')
 
 
 			ordered_polygons = [Polygons[i] for i in new_order]
@@ -533,10 +533,10 @@ class MapDrive(Node):
 
 		#print("7: ") # -------------------------------------
 		#pdb.set_trace()
-		self.get_logger().info("=..................=") 
-		print("-rows-:", rows )
-		print("-column-:", column )
-		self.get_logger().info("=..................=") 
+		# self.get_logger().info("=..................=") 
+		# print("-rows-:", rows )
+		# print("-column-:", column )
+		# self.get_logger().info("=..................=") 
 
 		polygons = []
 		with tempfile.NamedTemporaryFile(delete=False,mode='w') as ftmp:
@@ -558,7 +558,7 @@ class MapDrive(Node):
 
 		#self.get_logger().info("10: ") # -------------------------------------
 
-		print("----- Polygons: " +str(polygons)+".")
+		# print("----- Polygons: " +str(polygons)+".")
 
 		ordered_polygons = self.find_connected_polygons(polygons)
 		# ordered_polygons = polygons
@@ -570,12 +570,12 @@ class MapDrive(Node):
 					(point[1]+miny)*costmap.info.resolution+costmap.info.origin.position.y
 					) for point in poly]
 		#	print("11: ") # -------------------------------------
-			self.get_logger().info("====================") 
-			self.get_logger().info(" ") 
+			#self.get_logger().info("====================") 
+			#self.get_logger().info(" ") 
 			#print("-----print Points: " +str(poly)+".")
-			self.get_logger().info('polygon index: ' + str(ordered_polygons.index(poly)) + '.')
-			self.get_logger().info(" ") 
-			self.get_logger().info("====================") 
+			#self.get_logger().info('polygon index: ' + str(ordered_polygons.index(poly)) + '.')
+			#self.get_logger().info(" ") 
+			#self.get_logger().info("====================") 
 			self.drive_polygon(Polygon(points))
 		#self.get_logger().info("12: ") # -------------------------------------
 		self.get_logger().info("Boustrophedon Decomposition completed...")
@@ -811,25 +811,23 @@ class MapDrive(Node):
 		else:
 			path.insert(0, (self.x, self.y))
 
-		self.get_logger().info("o_o -==----: ")
-		self.get_logger().info("o_o 4: "+ str(path)) # -------------------------------------
+		# self.get_logger().info("o_o -==----: ")
+		# self.get_logger().info("o_o 4: "+ str(path)) # -------------------------------------
 
 		for pos_last,pos_next in pairwise(path):
 			
-			#if not rclpy.ok:
-			#	return
+			if not rclpy.ok:
+				return
 			
 
-			'''  ok  '''
-			
-			self.get_logger().info("o_o 5: ") # -------------------------------------
+			# self.get_logger().info("o_o 5: ") # -------------------------------------
 			pos_diff = np.array(pos_next)-np.array(pos_last)
 
 		#	self.get_logger().info("o_o 6: ") # -------------------------------------
 			# angle from last to current position
 			angle = atan2(pos_diff[1], pos_diff[0])
 
-			self.get_logger().info("o_o 7: ") # -------------------------------------
+			# self.get_logger().info("o_o 7: ") # -------------------------------------
 
 			if abs(pos_diff[0]) < self.local_costmap_width/2.0 and abs(pos_diff[1]) < self.local_costmap_height/2.0:
 				# goal is visible in local costmap, check path is clear
@@ -841,7 +839,7 @@ class MapDrive(Node):
 					continue
 				pos_next = closest
 
-			self.get_logger().info("o_o 10: ") # -------------------------------------
+			# self.get_logger().info("o_o 10: ") # -------------------------------------
 			self.write_pose(pos_last[0], pos_last[1], angle) # rotate in direction of next goal
 
 			# for i in range(self.count):
@@ -856,7 +854,7 @@ class MapDrive(Node):
 			self.write_pose(pos_next[0], pos_next[1], angle)
 			time.sleep(0.7)
 		
-		self.get_logger().info("o_o 9: ")
+		# self.get_logger().info("o_o 9: ")
 		self.visualize_path(path, False)
 		self.get_logger().info("drive path completed...") # -------------------------------------
 
@@ -932,13 +930,13 @@ class MapDrive(Node):
 
 
 		# run
-		self.get_logger().info("x_x 10: ") # -------------------------------------
+		# self.get_logger().info("x_x 10: ") # -------------------------------------
 		path_rotated = trapezoid_calc_path(poly_rotated, self.robot_width)
-		self.get_logger().info("x_x 11: ") # -------------------------------------
+		# self.get_logger().info("x_x 11: ") # -------------------------------------
 		path = rotate_points(path_rotated, -angle)
-		self.get_logger().info("x_x 12: ") # -------------------------------------
+		# self.get_logger().info("x_x 12: ") # -------------------------------------
 		self.drive_path(path)
-		self.get_logger().info("x_x 13: ") # -------------------------------------
+		# self.get_logger().info("x_x 13: ") # -------------------------------------
 
 		# cleanup
 		self.visualize_cell(polygon.exterior.coords[:], False)
@@ -1045,6 +1043,38 @@ if __name__ == '__main__':
 		#self.occupancy_map = np.reshape(msg.data, (self.height, self.width))
 
 
+'''
+def reorder_list(pairs):
+    parent_children = {}
+    for pair in pairs:
+        if isinstance(pair, tuple) and len(pair) == 2:
+            parent, child = pair
+            parent_children.setdefault(parent, []).append(child)
+
+    ordered_list = []
+    for parent in range(len(pairs)):
+        if parent not in parent_children:
+            continue
+        ordered_list.append(parent)
+        stack = parent_children[parent][::-1]
+        while stack:
+            node = stack.pop()
+            if node not in parent_children:
+                ordered_list.append(node)
+                continue
+            ordered_list.extend([node]+parent_children[node][::-1])
+    return ordered_list
+
+
+
+
+pairs = [(0, 3), (0, 77), (1, 76), (2, 5), (3, 6), (4, 7), (7, 9), (7, 10), (7, 77), (8, 13), (9, 74), (10, 14), (10, 16), (11, 16), (12, 13), (15, 17), (16, 17), (17, 18), (17, 20), (19, 21), (21, 22), (22, 23), (23, 26), (24, 25), (24, 69), (24, 70), (25, 27), (25, 68), (26, 28), (26, 31), (27, 30), (32, 47), (33, 38), (37, 39), (37, 40), (38, 39), (39, 40), (39, 43), (40, 41), (40, 43), (42, 46), (42, 68), (46, 66), (47, 50), (48, 67), (49, 60), (50, 60), (51, 56), (55, 56), (56, 61), (60, 64), (60, 66), (63, 66), (64, 66), (65, 66), (66, 67), (70, 71), (75,)]
+
+ordered_list = reorder_list(pairs)
+
+print(ordered_list)
+
+'''
 
 
 
