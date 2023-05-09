@@ -6,6 +6,14 @@ divided into cells by an algorithm which resembles the output of the Boustrophed
 
 ![path coverage demonstration](https://gitlab.com/Humpelstilzchen/path_coverage_ros/-/raw/master/images/path_coverage.gif)
 
+
+## TODO
+* The areas to cover needs to be ordered more intelligently (travelling salesman problem). 
+    Solved: Polygon list is re-ordered. polygons that share a border/point or at some thresholded distance away from each other are considered neighbours.
+    Further works: other means of calculating distance between polygons can be employed. I have used euclidean distance. others exists. some even specifically for polygons.
+* Tiny polygons exist and should be deleted: robot plans paths to tiny polygons that barely have two coordinates in them.
+    Solution: consider polygon's areas and threshold/cut-off based on some reasonable fixed number. This also shortens overall completion time.
+
 ## Requirements
 - ROS2 humble or galactic "tested on humble"
 - python-shapely
@@ -13,31 +21,27 @@ divided into cells by an algorithm which resembles the output of the Boustrophed
 - ruby for the Boustrophedon Decomposition: $ sudo apt-get install ruby-full
 
 ## Usage
-1. Start the navigation stack for your robot with move\_base
-2. Launch path coverage:
-
-TERMINAL-ROS2: source /opt/ros/humble/setup.bash; source ros2_ws/install/setup.bash; ros2 launch path_coverage path_coverage.launch.py
-
-3. Open RViz, add a *Marker plugin* and set the topic to "path\_coverage\_marker"
-4. On the map in RViz, think of a region that you like the robot to cover
-5. Click *Publish Point* at the top of RViz
-6. Click a single corner of n corners of the region
-7. Repeat step 5 and 6 above for n times. After that you'll see a polygon with n corners.
-8. The position of the final point should be close to the first
-9. When the closing point is detected the robot starts to cover the area
+1. Launch path coverage: 
+    TERMINAL-ROS2: source /opt/ros/humble/setup.bash; source ros2_ws/install/setup.bash; ros2 launch path_coverage path_coverage.launch.py
+2. Open RViz, add a *Marker plugin* and set the topic to "path\_coverage\_marker"
+3. On the map in RViz, think of a region that you like the robot to cover
+4. Click *Publish Point* at the top of RViz
+5. Click a single corner of n corners of the region
+6. Repeat step 5 and 6 above for n times. After that you'll see a polygon with n corners.
+7. The position of the final point should be close to the first
+8. When the closing point is detected the robot starts to cover the area
 
 ## ROS Nodes
 ### path\_coverage\_node.py
-The node that executes the Boustrophedon Decomposition, calculates the back and forth motions and sends them to move\_base.
+The node that executes the Boustrophedon Decomposition, calculates the back and forth motions and writes waypoints to a .yaml file.
 
-#### Subscribed Topics
+#### Input: Subscribed Topics
 * "/clicked\_point" - Clicked point from RViz
 * "global\_costmap/costmap" - To detect obstacles in path
 * "local\_costmap/costmap" - To detect obstacles in path
 
-#### Output
+#### Output: 
 * "pose_output.yaml" - in the home directory. contains waypoints.
-
 
 ### Parameters
 * boustrophedon\_decomposition (bool, default: true)
@@ -70,6 +74,5 @@ The node that executes the Boustrophedon Decomposition, calculates the back and 
 ROS1: Erik Andresen - erik@vontaene.de
 ROS2:  Azeez Adebayo - hazeezadebayo@gmail.com
 
-## TODO
-* The areas to cover needs to be ordered more intelligently (travelling salesman problem)
-* Check global planner performance improvement with https://discourse.ros.org/t/global-planner-goal-tolerance/19013
+
+
