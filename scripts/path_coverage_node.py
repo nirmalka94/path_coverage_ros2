@@ -2,7 +2,7 @@
 
 
 # ----------- be careful!! export ROS_DOMAIN_ID=2
-# . /usr/share/gazebo/setup.sh; source /opt/ros/humble/setup.bash; source ros2_ws/install/setup.bash; ros2 launch path_coverage path_coverage.launch.py
+# . /usr/share/gazebo/setup.sh; source /opt/ros/humble/setup.bash; source ros2_ws/install/setup.bash; ros2 run path_coverage path_coverage_node.py
 
 
 
@@ -74,11 +74,13 @@ class MapDrive(Node):
 		self.sub_node.get_logger().info('Created path_verifier_client node')
 		self.compute_path_to_pose_client = ActionClient(self.sub_node, ComputePathToPose, 'compute_path_to_pose')
 		self.goal_msg = ComputePathToPose.Goal()
+		self.x = None
+		self.y = None
 		
 		self.rospack  = get_package_share_directory('path_coverage') 
 
 		# Define the file name for the YAML file
-		self.filename = "pose_output.yaml"
+		self.filename = "/home/hazeezadebayo/ros2_ws/src/robovak2_test/params/full_path_cov_poses.yaml" # "pose_output.yaml"
 
 		# Initialize 
 		self.pose_output = {}
@@ -92,16 +94,16 @@ class MapDrive(Node):
 		self.feedback = None
 
 		self.declare_parameter("global_frame", "map")
-		self.declare_parameter("robot_width", 0.3)
+		self.declare_parameter("robot_width", 0.6) 
 		self.declare_parameter("costmap_max_non_lethal", 70)
 		self.declare_parameter("boustrophedon_decomposition", True)
 		self.declare_parameter("border_drive", False)
-		self.declare_parameter("base_frame", "base_link")
+		self.declare_parameter("base_frame", "base_footprint")
 
 		self.global_frame = self.get_parameter("global_frame").get_parameter_value().string_value 
 		self.robot_width = self.get_parameter("robot_width").get_parameter_value().double_value
 		self.costmap_max_non_lethal = self.get_parameter("costmap_max_non_lethal").get_parameter_value().integer_value
-		self.boustrophedon_decomposition = self.get_parameter("boustrophedon_decomposition").get_parameter_value().bool_value
+		self.boustrophedon_decomposition = self.get_parameter("boustrophedon_decomposition").get_parameter_value().bool_value #  False #
 		self.border_drive = self.get_parameter("border_drive").get_parameter_value().bool_value
 		self.base_frame = self.get_parameter("base_frame").get_parameter_value().string_value
 
@@ -300,6 +302,7 @@ class MapDrive(Node):
 				self.get_logger().info("writing the data to the YAML file...")
 				# empty the pose_output dict
 				# Write the data to the YAML file
+				self.pose_output["update_time"] = time.time_ns()
 				with open(self.filename, "w") as f:
 					yaml.dump(self.pose_output, f)
 				self.pose_output = {}	
@@ -308,6 +311,176 @@ class MapDrive(Node):
 			# self.get_logger().info("i got here 6:")
 		self.visualize_area(points, close=False)
 		self.get_logger().info("finished successfully rvizPointReceived func.")
+
+
+
+
+	def make_Polygons_shapely_polygons(self, Polygons):
+		polygons = []
+		for polygon in Polygons:
+			coords = [(x, y) for x, y in polygon]
+			shapely_polygon = Polygon(coords)
+			polygons.append(shapely_polygon)
+		return polygons
+
+
+	def are_polygons_connected(self, poly1, poly2, threshold=2): # 35
+		p1 = Polygon(poly1)
+		p2 = Polygon(poly2)
+		for c1 in p1.exterior.coords:
+			for c2 in p2.exterior.coords:
+				if math.sqrt((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2) <= threshold:
+					# print("c1,c2 :", c1,c2)
+					return True
+		return False
+
+
+
+	def are_polygons_connected_with_increased_thresh(self, poly1, poly2):
+		return self.are_polygons_connected(poly1, poly2, threshold=10)
+
+
+	def find_connected_polygons(self, Polygons):
+
+		polygons = self.make_Polygons_shapely_polygons(Polygons)
+
+		connected_polygons = []
+		associated_polygons = set()
+
+		for i, poly1 in enumerate(polygons):
+
+			index1 = polygons.index(poly1)
+
+			for j, poly2 in enumerate(polygons[i+1:], start=i+1):
+				if self.are_polygons_connected(poly1, poly2):
+					index2 = polygons.index(poly2)
+					connected_polygons.append((index1, index2))
+					associated_polygons.add(poly1)
+					associated_polygons.add(poly2)
+
+			if poly1 not in associated_polygons:
+				for poly2 in polygons:
+				#for j, poly2 in enumerate(polygons[i+1:], start=i+1):
+					if poly2 != poly1:
+						if self.are_polygons_connected_with_increased_thresh(poly1, poly2):
+							index2 = polygons.index(poly2)
+							connected_polygons.append((index1, index2))
+							associated_polygons.add(poly1)
+							associated_polygons.add(poly2)
+							break
+
+			if poly1 not in associated_polygons:    
+				connected_polygons.append((index1,))
+				associated_polygons.add(poly1)
+
+		if connected_polygons:
+			order = []
+			# visited = set()
+			parent_children = {}
+			for pair in connected_polygons:
+				print(pair)
+
+				# if you wanna use parent grandparent format
+				# '''
+				if isinstance(pair, tuple) and len(pair) == 2:
+					parent, child = pair
+					parent_children.setdefault(parent, []).append(child)
+
+			for parent in range(len(connected_polygons)):
+				if parent not in parent_children:
+					continue
+				order.append(parent)
+				stack = parent_children[parent][::-1]
+				while stack:
+					node = stack.pop()
+					if node not in parent_children:
+						order.append(node)
+						continue
+					order.extend([node]+parent_children[node][::-1])			
+				#'''
+
+
+				# if you wanna use the visited set()
+				'''
+				if isinstance(pair, tuple) and len(pair) == 2:
+					if pair[0] not in visited and pair[1] not in visited:
+						if pair[0] in order:
+							order.insert(order.index(pair[0])+1, pair[1])
+						elif pair[1] in order:
+							order.insert(order.index(pair[1]), pair[0])
+						else:
+							order.append(pair[0])
+							order.append(pair[1])
+						visited.add(pair[0])
+						visited.add(pair[1])
+					elif pair[0] not in visited:
+						order.append(pair[0])
+						visited.add(pair[0])
+					elif pair[1] not in visited:
+						order.append(pair[1])
+						visited.add(pair[1])
+				else:
+					if pair[0] not in visited:
+						order.append(pair[0])
+						visited.add(pair[0])			
+				'''
+
+				# if you just 
+				''' 
+				if isinstance(pair, tuple) and len(pair) == 2:
+					if pair[0] in order:
+						order.insert(order.index(pair[0])+1, pair[1])
+					elif pair[1] in order:
+						order.insert(order.index(pair[1]), pair[0])
+					else:
+						order.append(pair[0])
+						order.append(pair[1])
+				else:
+					if pair[0] not in order:
+						order.append(pair[0])          
+				#'''
+
+				
+			# print("order: ", order)
+			self.get_logger().info('order: ' + str(order) + '.')
+
+			'''
+			new_order = []
+			for elem in order:
+				if elem in new_order:
+					new_order.remove(elem)
+				new_order.append(elem)
+
+			'''
+			new_order = []
+			for elem in order:
+				if elem not in new_order:
+					new_order.append(elem)
+			
+
+
+
+			order = []
+			# print("new_order: ", new_order)
+			self.get_logger().info('new_order: ' + str(new_order) + '.')
+
+
+			ordered_polygons = [Polygons[i] for i in new_order]
+
+			new_order = []
+			
+			#print("ordered_polygons: ", ordered_polygons)
+			return ordered_polygons
+		else:
+			print("No polygons are connected.")
+
+
+
+
+
+
+
+
 
 
 
@@ -340,7 +513,7 @@ class MapDrive(Node):
 		# Transform costmap values to values expected by boustrophedon_decomposition script
 		rows = []
 		for ix in range(int(minx), int(maxx)):
-			self.get_logger().info("6: ") # -------------------------------------
+			# self.get_logger().info("6: ") # -------------------------------------
 			column = []
 			for iy in range(int(miny), int(maxy)):
 				x = ix*costmap.info.resolution+costmap.info.origin.position.x
@@ -360,6 +533,10 @@ class MapDrive(Node):
 
 		#print("7: ") # -------------------------------------
 		#pdb.set_trace()
+		self.get_logger().info("=..................=") 
+		print("-rows-:", rows )
+		print("-column-:", column )
+		self.get_logger().info("=..................=") 
 
 		polygons = []
 		with tempfile.NamedTemporaryFile(delete=False,mode='w') as ftmp:
@@ -381,22 +558,27 @@ class MapDrive(Node):
 
 		#self.get_logger().info("10: ") # -------------------------------------
 
-		for poly in polygons:
+		print("----- Polygons: " +str(polygons)+".")
+
+		ordered_polygons = self.find_connected_polygons(polygons)
+		# ordered_polygons = polygons
+
+		for poly in ordered_polygons:
 			points = [
 					(
 					(point[0]+minx)*costmap.info.resolution+costmap.info.origin.position.x,
 					(point[1]+miny)*costmap.info.resolution+costmap.info.origin.position.y
 					) for point in poly]
 		#	print("11: ") # -------------------------------------
-			self.get_logger().debug("Creating polygon from Boustrophedon Decomposition %s" % (str(points)))
+			self.get_logger().info("====================") 
+			self.get_logger().info(" ") 
+			#print("-----print Points: " +str(poly)+".")
+			self.get_logger().info('polygon index: ' + str(ordered_polygons.index(poly)) + '.')
+			self.get_logger().info(" ") 
+			self.get_logger().info("====================") 
 			self.drive_polygon(Polygon(points))
 		#self.get_logger().info("12: ") # -------------------------------------
 		self.get_logger().info("Boustrophedon Decomposition completed...")
-
-
-
-
-
 
 
 
@@ -613,10 +795,10 @@ class MapDrive(Node):
 
 
 	def drive_path(self, path):
-		#self.get_logger().info("o_o 1: ") # -------------------------------------
+		self.get_logger().info("o_o 1: ") # -------------------------------------
 		self.visualize_path(path)
 
-		# self.get_logger().info("o_o 2: ") # -------------------------------------
+		self.get_logger().info("o_o 2: ") # -------------------------------------
 
 		try:
 			initial_pos = self.tfBuffer.lookup_transform(self.global_frame, self.base_frame, rclpy.time.Time()) 
@@ -624,24 +806,30 @@ class MapDrive(Node):
 			pass 
 
 		#self.get_logger().info("o_o 3: ") # -------------------------------------
-		
-		path.insert(0, (initial_pos.transform.translation.x, initial_pos.transform.translation.y))
+		if self.x == None and self.y == None:
+			path.insert(0, (initial_pos.transform.translation.x, initial_pos.transform.translation.y))
+		else:
+			path.insert(0, (self.x, self.y))
 
-		#self.get_logger().info("o_o 4: ") # -------------------------------------
+		self.get_logger().info("o_o -==----: ")
+		self.get_logger().info("o_o 4: "+ str(path)) # -------------------------------------
 
 		for pos_last,pos_next in pairwise(path):
 			
-			if not rclpy.ok:
-				return
+			#if not rclpy.ok:
+			#	return
 			
-		#	self.get_logger().info("o_o 5: ") # -------------------------------------
+
+			'''  ok  '''
+			
+			self.get_logger().info("o_o 5: ") # -------------------------------------
 			pos_diff = np.array(pos_next)-np.array(pos_last)
 
 		#	self.get_logger().info("o_o 6: ") # -------------------------------------
 			# angle from last to current position
 			angle = atan2(pos_diff[1], pos_diff[0])
 
-		#	self.get_logger().info("o_o 7: ") # -------------------------------------
+			self.get_logger().info("o_o 7: ") # -------------------------------------
 
 			if abs(pos_diff[0]) < self.local_costmap_width/2.0 and abs(pos_diff[1]) < self.local_costmap_height/2.0:
 				# goal is visible in local costmap, check path is clear
@@ -653,7 +841,7 @@ class MapDrive(Node):
 					continue
 				pos_next = closest
 
-		#	self.get_logger().info("o_o 10: ") # -------------------------------------
+			self.get_logger().info("o_o 10: ") # -------------------------------------
 			self.write_pose(pos_last[0], pos_last[1], angle) # rotate in direction of next goal
 
 			# for i in range(self.count):
@@ -667,7 +855,8 @@ class MapDrive(Node):
 		#	self.get_logger().info("o_o 11: ") # -------------------------------------
 			self.write_pose(pos_next[0], pos_next[1], angle)
 			time.sleep(0.7)
-			
+		
+		self.get_logger().info("o_o 9: ")
 		self.visualize_path(path, False)
 		self.get_logger().info("drive path completed...") # -------------------------------------
 
@@ -702,6 +891,8 @@ class MapDrive(Node):
                                     "z": angle_quat[2]
                                 },
                             } 
+		self.x = x
+		self.y = y
 
 
 
@@ -741,13 +932,13 @@ class MapDrive(Node):
 
 
 		# run
-		#self.get_logger().info("x_x 10: ") # -------------------------------------
+		self.get_logger().info("x_x 10: ") # -------------------------------------
 		path_rotated = trapezoid_calc_path(poly_rotated, self.robot_width)
-		#self.get_logger().info("x_x 11: ") # -------------------------------------
+		self.get_logger().info("x_x 11: ") # -------------------------------------
 		path = rotate_points(path_rotated, -angle)
-		#self.get_logger().info("x_x 12: ") # -------------------------------------
+		self.get_logger().info("x_x 12: ") # -------------------------------------
 		self.drive_path(path)
-		#self.get_logger().info("x_x 13: ") # -------------------------------------
+		self.get_logger().info("x_x 13: ") # -------------------------------------
 
 		# cleanup
 		self.visualize_cell(polygon.exterior.coords[:], False)
@@ -852,7 +1043,6 @@ if __name__ == '__main__':
 		#self.width = msg.info.width
 		#self.map_res = msg.info.resolution
 		#self.occupancy_map = np.reshape(msg.data, (self.height, self.width))
-
 
 
 
