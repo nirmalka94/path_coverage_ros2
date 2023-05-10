@@ -7,12 +7,12 @@ divided into cells by an algorithm which resembles the output of the Boustrophed
 ![path coverage demonstration](https://github.com/BirfenArge/path_coverage/blob/main/images/path_coverage.gif)
 
 
-## TODO
+## UPDATE
 * The areas to cover needs to be ordered more intelligently (travelling salesman problem). 
     Solved: Polygon list is re-ordered. polygons that share a border/point or at some thresholded distance away from each other are considered neighbours.
     Further works: other means of calculating distance between polygons can be employed. I have used euclidean distance. others exists. some even specifically for polygons.
-* Tiny polygons exist and should be deleted: robot plans paths to tiny polygons that barely have two coordinates in them.
-    Solution: consider polygon's areas and threshold/cut-off based on some reasonable fixed number. This also shortens overall completion time.
+* Tiny polygons exist and are removed/deleted: robot plans paths to tiny polygons that barely have two coordinates in them.
+    Solution: considered polygon's areas and thresholded/cut-off polygons based on some reasonably determined number. This also shortens overall coverage completion time.
 
 ## Requirements
 - ROS2 humble or galactic "tested on humble"
