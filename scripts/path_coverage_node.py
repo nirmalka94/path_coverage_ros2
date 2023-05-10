@@ -80,7 +80,7 @@ class MapDrive(Node):
 		self.rospack  = get_package_share_directory('path_coverage') 
 
 		# Define the file name for the YAML file
-		self.filename =   # "/home/hazeezadebayo/ros2_ws/src/robovak2_test/params/full_path_cov_poses.yaml" # "pose_output.yaml"
+		self.filename = "/home/hazeezadebayo/ros2_ws/src/robovak2_test/params/full_path_cov_poses.yaml" # "pose_output.yaml"
 
 		# Initialize 
 		self.pose_output = {}
@@ -314,14 +314,16 @@ class MapDrive(Node):
 
 
 
-
 	def make_Polygons_shapely_polygons(self, Polygons):
 		polygons = []
+		polygon_area = []
 		for polygon in Polygons:
 			coords = [(x, y) for x, y in polygon]
 			shapely_polygon = Polygon(coords)
+			area = shapely_polygon.area
 			polygons.append(shapely_polygon)
-		return polygons
+			polygon_area.append(area)
+		return polygons, polygon_area
 
 
 	def are_polygons_connected(self, poly1, poly2, threshold=2): # 35
@@ -340,12 +342,12 @@ class MapDrive(Node):
 		return self.are_polygons_connected(poly1, poly2, threshold=10)
 
 
-	def find_connected_polygons(self, Polygons):
+	def find_connected_polygons(self, Polygons, polygon_area_threshold=150):
 
 		if len(Polygons) <= 2:
 			return Polygons
 
-		polygons = self.make_Polygons_shapely_polygons(Polygons)
+		polygons, polygon_area = self.make_Polygons_shapely_polygons(Polygons)
 
 		connected_polygons = []
 		associated_polygons = set()
@@ -377,14 +379,13 @@ class MapDrive(Node):
 				associated_polygons.add(poly1)
 
 		if connected_polygons:
+
 			order = []
-			# visited = set()
 			parent_children = {}
+
 			for pair in connected_polygons:
 				# print(pair)
 
-				# if you wanna use parent grandparent format
-				# '''
 				if isinstance(pair, tuple) and len(pair) == 2:
 					parent, child = pair
 					parent_children.setdefault(parent, []).append(child)
@@ -400,80 +401,32 @@ class MapDrive(Node):
 						order.append(node)
 						continue
 					order.extend([node]+parent_children[node][::-1])			
-				#'''
 
-
-				# if you wanna use the visited set()
-				'''
-				if isinstance(pair, tuple) and len(pair) == 2:
-					if pair[0] not in visited and pair[1] not in visited:
-						if pair[0] in order:
-							order.insert(order.index(pair[0])+1, pair[1])
-						elif pair[1] in order:
-							order.insert(order.index(pair[1]), pair[0])
-						else:
-							order.append(pair[0])
-							order.append(pair[1])
-						visited.add(pair[0])
-						visited.add(pair[1])
-					elif pair[0] not in visited:
-						order.append(pair[0])
-						visited.add(pair[0])
-					elif pair[1] not in visited:
-						order.append(pair[1])
-						visited.add(pair[1])
-				else:
-					if pair[0] not in visited:
-						order.append(pair[0])
-						visited.add(pair[0])			
-				'''
-
-				# if you just 
-				''' 
-				if isinstance(pair, tuple) and len(pair) == 2:
-					if pair[0] in order:
-						order.insert(order.index(pair[0])+1, pair[1])
-					elif pair[1] in order:
-						order.insert(order.index(pair[1]), pair[0])
-					else:
-						order.append(pair[0])
-						order.append(pair[1])
-				else:
-					if pair[0] not in order:
-						order.append(pair[0])          
-				#'''
-
-				
-			# print("order: ", order)
-			# self.get_logger().info('order: ' + str(order) + '.')
-
-			'''
-			new_order = []
-			for elem in order:
-				if elem in new_order:
-					new_order.remove(elem)
-				new_order.append(elem)
-
-			'''
 			new_order = []
 			for elem in order:
 				if elem not in new_order:
 					new_order.append(elem)
 			
-
-
-
-			order = []
 			# print("new_order: ", new_order)
 			# self.get_logger().info('new_order: ' + str(new_order) + '.')
 
-
 			ordered_polygons = [Polygons[i] for i in new_order]
+			ordered_polygon_areas = [polygon_area[i] for i in new_order]
 
-			new_order = []
-			
+			filtered_polygons = []; 
+
+			for polygon, area in zip(ordered_polygons, ordered_polygon_areas):
+				if area >= polygon_area_threshold:
+					filtered_polygons.append(polygon)
+
+			parent_children = None; del parent_children
+			order = None; del order
+			new_order = None; del new_order
+			ordered_polygons = None; del ordered_polygons
+			ordered_polygon_areas = None; del ordered_polygon_areas
+
 			#print("ordered_polygons: ", ordered_polygons)
-			return ordered_polygons
+			return filtered_polygons
 		else:
 			print("No polygons are connected.")
 
@@ -535,10 +488,6 @@ class MapDrive(Node):
 
 
 		#print("7: ") # -------------------------------------
-		#pdb.set_trace()
-		# self.get_logger().info("=..................=") 
-		# print("-rows-:", rows )
-		# print("-column-:", column )
 		# self.get_logger().info("=..................=") 
 
 		polygons = []
@@ -560,11 +509,9 @@ class MapDrive(Node):
 
 
 		#self.get_logger().info("10: ") # -------------------------------------
-
 		# print("----- Polygons: " +str(polygons)+".")
 
 		ordered_polygons = self.find_connected_polygons(polygons)
-		# ordered_polygons = polygons
 
 		for poly in ordered_polygons:
 			points = [
@@ -573,12 +520,7 @@ class MapDrive(Node):
 					(point[1]+miny)*costmap.info.resolution+costmap.info.origin.position.y
 					) for point in poly]
 		#	print("11: ") # -------------------------------------
-			#self.get_logger().info("====================") 
-			#self.get_logger().info(" ") 
-			#print("-----print Points: " +str(poly)+".")
 			#self.get_logger().info('polygon index: ' + str(ordered_polygons.index(poly)) + '.')
-			#self.get_logger().info(" ") 
-			#self.get_logger().info("====================") 
 			self.drive_polygon(Polygon(points))
 		#self.get_logger().info("12: ") # -------------------------------------
 		self.get_logger().info("Boustrophedon Decomposition completed...")
@@ -761,13 +703,13 @@ class MapDrive(Node):
 
 
 	def transform_pose(self, pose, transform):
-		#self.get_logger().info('transform_pose...0')
+		# self.get_logger().info('transform_pose...0')
 		# Extract translation and rotation from transform
 		translation = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
-		#self.get_logger().info('transform_pose...1')
+		# self.get_logger().info('transform_pose...1')
 		rotation = Rotation.from_quat([transform.transform.rotation.x, transform.transform.rotation.y,
                                     transform.transform.rotation.z, transform.transform.rotation.w])
-		#self.get_logger().info('transform_pose...2')
+		# self.get_logger().info('transform_pose...2')
 		# Extract position and orientation from input pose
 		position = [pose.pose.position.x, pose.pose.position.y, pose.pose.position.z]
 		orientation = Rotation.from_quat([pose.pose.orientation.x, pose.pose.orientation.y,
@@ -1027,57 +969,9 @@ if __name__ == '__main__':
 # sudo journalctl --vacuum-time=0.1d
 # rm -rf ~/.cache/thumbnails/*
 
-#self.get_logger().info('received aruco stat: "%f" "%f" "%f" "%f" "%f" ' \
-#    % (msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4]))
-
-# if you want to set parameter from code:
-#param_str = Parameter('my_str', Parameter.Type.STRING, 'Set from code')
-#param_int = Parameter('my_int', Parameter.Type.INTEGER, 12)
-#param_double_array = Parameter('my_double_array', Parameter.Type.DOUBLE_ARRAY, [1.1, 2.2])
-
-#def map_callback(self, msg):
-	#"""Load received global costmap"""
-	#print("i recieved a map occupancy ------")
-	#if self.occupancy_map is None:
-		#self.origin = [msg.info.origin.position.x, msg.info.origin.position.y]
-		#self.height = msg.info.height
-		#self.width = msg.info.width
-		#self.map_res = msg.info.resolution
-		#self.occupancy_map = np.reshape(msg.data, (self.height, self.width))
-
-
-'''
-def reorder_list(pairs):
-    parent_children = {}
-    for pair in pairs:
-        if isinstance(pair, tuple) and len(pair) == 2:
-            parent, child = pair
-            parent_children.setdefault(parent, []).append(child)
-
-    ordered_list = []
-    for parent in range(len(pairs)):
-        if parent not in parent_children:
-            continue
-        ordered_list.append(parent)
-        stack = parent_children[parent][::-1]
-        while stack:
-            node = stack.pop()
-            if node not in parent_children:
-                ordered_list.append(node)
-                continue
-            ordered_list.extend([node]+parent_children[node][::-1])
-    return ordered_list
 
 
 
-
-pairs = [(0, 3), (0, 77), (1, 76), (2, 5), (3, 6), (4, 7), (7, 9), (7, 10), (7, 77), (8, 13), (9, 74), (10, 14), (10, 16), (11, 16), (12, 13), (15, 17), (16, 17), (17, 18), (17, 20), (19, 21), (21, 22), (22, 23), (23, 26), (24, 25), (24, 69), (24, 70), (25, 27), (25, 68), (26, 28), (26, 31), (27, 30), (32, 47), (33, 38), (37, 39), (37, 40), (38, 39), (39, 40), (39, 43), (40, 41), (40, 43), (42, 46), (42, 68), (46, 66), (47, 50), (48, 67), (49, 60), (50, 60), (51, 56), (55, 56), (56, 61), (60, 64), (60, 66), (63, 66), (64, 66), (65, 66), (66, 67), (70, 71), (75,)]
-
-ordered_list = reorder_list(pairs)
-
-print(ordered_list)
-
-'''
 
 
 
