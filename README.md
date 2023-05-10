@@ -37,8 +37,8 @@ The node that executes the Boustrophedon Decomposition, calculates the back and 
 
 #### Input: Subscribed Topics
 * "/clicked\_point" - Clicked point from RViz
-* "global\_costmap/costmap" - To detect obstacles in path
-* "local\_costmap/costmap" - To detect obstacles in path
+* "/global\_costmap/costmap" - To detect obstacles in path
+* "/local\_costmap/costmap" - To detect obstacles in path
 
 #### Output: 
 * "pose_output.yaml" - in the home directory. contains waypoints.
