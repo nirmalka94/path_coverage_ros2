@@ -16,8 +16,8 @@ def generate_launch_description():
             parameters=[{
                 "boustrophedon_decomposition": True, # <!-- Whether to execute the boustrophedon decomposition --> default - "true"
                 "border_drive": False, # <!-- Drive around the cell first --> default - "false"
-                "robot_width": 0.15, # <!-- Width of each path --> default - "0.15"
-                "costmap_max_non_lethal": 15, # <!-- Maximum costmap value to consider free --> default - "15"
+                "robot_width": 0.40, # <!-- Width of each path --> default - "0.15"
+                "costmap_max_non_lethal": 70, # <!-- Maximum costmap value to consider free --> default - "15"
                 "base_frame": "base_link", # <!-- The robots base frame --> default - "base_link"
                 "global_frame": "map"
             }]
