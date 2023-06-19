@@ -92,13 +92,15 @@ class MapDrive(Node):
 		self.goal_handle = None
 		self.result_future = None
 		self.feedback = None
-
+		
 		self.declare_parameter("global_frame", "map")
 		self.declare_parameter("robot_width", 0.6) 
 		self.declare_parameter("costmap_max_non_lethal", 70)
 		self.declare_parameter("boustrophedon_decomposition", True)
 		self.declare_parameter("border_drive", False)
 		self.declare_parameter("base_frame", "base_footprint")
+		self.declare_parameter("num_midpoints", 2) 
+		self.declare_parameter("split_wp_dist", 5.0) 
 
 		self.global_frame = self.get_parameter("global_frame").get_parameter_value().string_value 
 		self.robot_width = self.get_parameter("robot_width").get_parameter_value().double_value
@@ -106,6 +108,8 @@ class MapDrive(Node):
 		self.boustrophedon_decomposition = self.get_parameter("boustrophedon_decomposition").get_parameter_value().bool_value #  False #
 		self.border_drive = self.get_parameter("border_drive").get_parameter_value().bool_value
 		self.base_frame = self.get_parameter("base_frame").get_parameter_value().string_value
+		self.num_midpoints = self.get_parameter("num_midpoints").get_parameter_value().integer_value
+		self.split_wp_dist = self.get_parameter("split_wp_dist").get_parameter_value().double_value
 
 		self.create_subscription(PointStamped, "/clicked_point", self.rvizPointReceived, 1)
 		# self.global_map_sub = self.create_subscription(OccupancyGrid, '/global_costmap/costmap', self.map_callback, QoSProfile(depth=300, reliability=ReliabilityPolicy.BEST_EFFORT))
@@ -117,8 +121,8 @@ class MapDrive(Node):
 		self.tfBuffer = Buffer()
 		self.tf_listener = TransformListener(self.tfBuffer, self)
 
-		self.get_logger().info('parameters::::global_frame::robot_width::costmap_max_non_lethal::boustrophedon_decomposition::border_drive::base_frame.')
-		self.get_logger().info('::::::::::::::'+str(self.global_frame)+'::'+str(self.robot_width)+'::'+str(self.costmap_max_non_lethal)+'::'+str(self.boustrophedon_decomposition)+'::'+str(self.border_drive)+'::'+str(self.base_frame)+'.')
+		self.get_logger().info('parameters::::global_frame::robot_width::costmap_max_non_lethal::boustrophedon_decomposition::border_drive::base_frame::num_midpoints::split_wp_dist.')
+		self.get_logger().info('::::::::::::::'+str(self.global_frame)+'::'+str(self.robot_width)+'::'+str(self.costmap_max_non_lethal)+'::'+str(self.boustrophedon_decomposition)+'::'+str(self.border_drive)+'::'+str(self.base_frame)+'::'+str(self.num_midpoints)+'::'+str(self.split_wp_dist)+'.')
 		self.get_logger().info("Path coverage node initialized successfully...")
 	
 
@@ -326,7 +330,7 @@ class MapDrive(Node):
 		return polygons, polygon_area
 
 
-	def are_polygons_connected(self, poly1, poly2, threshold=2): # 35
+	def are_polygons_connected(self, poly1, poly2, threshold=2): 
 		p1 = Polygon(poly1)
 		p2 = Polygon(poly2)
 		for c1 in p1.exterior.coords:
@@ -339,7 +343,7 @@ class MapDrive(Node):
 
 
 	def are_polygons_connected_with_increased_thresh(self, poly1, poly2):
-		return self.are_polygons_connected(poly1, poly2, threshold=10)
+		return self.are_polygons_connected(poly1, poly2, threshold=4)
 
 
 	def find_connected_polygons(self, Polygons, polygon_area_threshold=150):
@@ -810,6 +814,31 @@ class MapDrive(Node):
 
 
 
+	def calculate_waypoints(self, x1, y1, x2, y2, angle_quat):
+		delta_x = (x2 - x1) / (self.num_midpoints + 1)
+		delta_y = (y2 - y1) / (self.num_midpoints + 1)
+		for i in range(self.num_midpoints):
+			waypoint_x = x1 + (i + 1) * delta_x
+			waypoint_y = y1 + (i + 1) * delta_y
+			self.get_logger().info("- including points: (%f, %f)" % (waypoint_x, waypoint_y))
+			# Append the mid waypoint to the data dictionary with the index as the key
+			index = len(self.pose_output) + 1
+			self.pose_output[index] = {
+									"position":
+									{
+										"x": waypoint_x,
+										"y": waypoint_y,
+										"z": 0.0
+									},
+									"orientation":
+									{
+										"w": angle_quat[3],
+										"x": angle_quat[0],
+										"y": angle_quat[1],
+										"z": angle_quat[2]
+									},
+								} 
+
 
 
 	def write_pose(self, x, y, angle):
@@ -817,6 +846,15 @@ class MapDrive(Node):
 
 		angle_quat = self.euler_to_quaternion(angle,0,0)
 
+		if len(self.pose_output) >= 1:
+			last_index = len(self.pose_output) 
+			x1 = self.pose_output[last_index]["position"]["x"]
+			y1 = self.pose_output[last_index]["position"]["y"]
+			distance = math.sqrt((x - x1)**2 + (y - y1)**2)
+			if distance >= self.split_wp_dist:
+				self.get_logger().warn(" ")
+				self.calculate_waypoints(x1, y1, x, y, angle_quat)
+			
 		# Append the values to the data dictionary with the index as the key
 		index = len(self.pose_output) + 1
 		self.pose_output[index] = {
@@ -969,9 +1007,57 @@ if __name__ == '__main__':
 # sudo journalctl --vacuum-time=0.1d
 # rm -rf ~/.cache/thumbnails/*
 
+#self.get_logger().info('received aruco stat: "%f" "%f" "%f" "%f" "%f" ' \
+#    % (msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4]))
+
+# if you want to set parameter from code:
+#param_str = Parameter('my_str', Parameter.Type.STRING, 'Set from code')
+#param_int = Parameter('my_int', Parameter.Type.INTEGER, 12)
+#param_double_array = Parameter('my_double_array', Parameter.Type.DOUBLE_ARRAY, [1.1, 2.2])
+
+#def map_callback(self, msg):
+	#"""Load received global costmap"""
+	#print("i recieved a map occupancy ------")
+	#if self.occupancy_map is None:
+		#self.origin = [msg.info.origin.position.x, msg.info.origin.position.y]
+		#self.height = msg.info.height
+		#self.width = msg.info.width
+		#self.map_res = msg.info.resolution
+		#self.occupancy_map = np.reshape(msg.data, (self.height, self.width))
+
+
+'''
+def reorder_list(pairs):
+    parent_children = {}
+    for pair in pairs:
+        if isinstance(pair, tuple) and len(pair) == 2:
+            parent, child = pair
+            parent_children.setdefault(parent, []).append(child)
+
+    ordered_list = []
+    for parent in range(len(pairs)):
+        if parent not in parent_children:
+            continue
+        ordered_list.append(parent)
+        stack = parent_children[parent][::-1]
+        while stack:
+            node = stack.pop()
+            if node not in parent_children:
+                ordered_list.append(node)
+                continue
+            ordered_list.extend([node]+parent_children[node][::-1])
+    return ordered_list
 
 
 
+
+pairs = [(0, 3), (0, 77), (1, 76), (2, 5), (3, 6), (4, 7), (7, 9), (7, 10), (7, 77), (8, 13), (9, 74), (10, 14), (10, 16), (11, 16), (12, 13), (15, 17), (16, 17), (17, 18), (17, 20), (19, 21), (21, 22), (22, 23), (23, 26), (24, 25), (24, 69), (24, 70), (25, 27), (25, 68), (26, 28), (26, 31), (27, 30), (32, 47), (33, 38), (37, 39), (37, 40), (38, 39), (39, 40), (39, 43), (40, 41), (40, 43), (42, 46), (42, 68), (46, 66), (47, 50), (48, 67), (49, 60), (50, 60), (51, 56), (55, 56), (56, 61), (60, 64), (60, 66), (63, 66), (64, 66), (65, 66), (66, 67), (70, 71), (75,)]
+
+ordered_list = reorder_list(pairs)
+
+print(ordered_list)
+
+'''
 
 
 
