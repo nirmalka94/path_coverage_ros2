@@ -13,6 +13,8 @@ divided into cells by an algorithm which resembles the output of the Boustrophed
     Further works: other means of calculating distance between polygons can be employed. I have used euclidean distance. others exists. some even specifically for polygons.
 * Tiny polygons exist and are removed/deleted: robot plans paths to tiny polygons that barely have two coordinates in them.
     Solution: considered polygon's areas and thresholded/cut-off polygons based on some reasonably determined number. This also shortens overall coverage completion time.
+* Local planner tends to replan path between waypoints: the paths being followed by the robot ends up being a non straight path which is not good for a cleaning robot.
+    Solution: A flexible number of mid waypoints can now be inserted automatically between distant coverage generated waypoints to make for a better path line.
 
 ## Requirements
 - ROS2 humble or galactic "tested on humble"
