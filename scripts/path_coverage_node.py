@@ -99,8 +99,8 @@ class MapDrive(Node):
 		self.declare_parameter("boustrophedon_decomposition", True)
 		self.declare_parameter("border_drive", False)
 		self.declare_parameter("base_frame", "base_footprint")
-		self.declare_parameter("num_midpoints", 2) 
-		self.declare_parameter("split_wp_dist", 3.5) 
+		self.declare_parameter("num_points", 2) 
+		self.declare_parameter("min_wp_dist", 3.5) 
 
 		self.global_frame = self.get_parameter("global_frame").get_parameter_value().string_value 
 		self.robot_width = self.get_parameter("robot_width").get_parameter_value().double_value
@@ -108,8 +108,8 @@ class MapDrive(Node):
 		self.boustrophedon_decomposition = self.get_parameter("boustrophedon_decomposition").get_parameter_value().bool_value #  False #
 		self.border_drive = self.get_parameter("border_drive").get_parameter_value().bool_value
 		self.base_frame = self.get_parameter("base_frame").get_parameter_value().string_value
-		self.num_midpoints = self.get_parameter("num_midpoints").get_parameter_value().integer_value
-		self.split_wp_dist = self.get_parameter("split_wp_dist").get_parameter_value().double_value
+		self.num_points = self.get_parameter("num_points").get_parameter_value().integer_value
+		self.min_wp_dist = self.get_parameter("min_wp_dist").get_parameter_value().double_value
 
 		self.create_subscription(PointStamped, "/clicked_point", self.rvizPointReceived, 1)
 		# self.global_map_sub = self.create_subscription(OccupancyGrid, '/global_costmap/costmap', self.map_callback, QoSProfile(depth=300, reliability=ReliabilityPolicy.BEST_EFFORT))
@@ -121,8 +121,8 @@ class MapDrive(Node):
 		self.tfBuffer = Buffer()
 		self.tf_listener = TransformListener(self.tfBuffer, self)
 
-		self.get_logger().info('parameters::::global_frame::robot_width::costmap_max_non_lethal::boustrophedon_decomposition::border_drive::base_frame::num_midpoints::split_wp_dist.')
-		self.get_logger().info('::::::::::::::'+str(self.global_frame)+'::'+str(self.robot_width)+'::'+str(self.costmap_max_non_lethal)+'::'+str(self.boustrophedon_decomposition)+'::'+str(self.border_drive)+'::'+str(self.base_frame)+'::'+str(self.num_midpoints)+'::'+str(self.split_wp_dist)+'.')
+		self.get_logger().info('parameters::::global_frame::robot_width::costmap_max_non_lethal::boustrophedon_decomposition::border_drive::base_frame::num_points::min_wp_dist.')
+		self.get_logger().info('::::::::::::::'+str(self.global_frame)+'::'+str(self.robot_width)+'::'+str(self.costmap_max_non_lethal)+'::'+str(self.boustrophedon_decomposition)+'::'+str(self.border_drive)+'::'+str(self.base_frame)+'::'+str(self.num_points)+'::'+str(self.min_wp_dist)+'.')
 		self.get_logger().info("Path coverage node initialized successfully...")
 	
 
@@ -306,7 +306,7 @@ class MapDrive(Node):
 				self.get_logger().info("writing the data to the YAML file...")
 				# empty the pose_output dict
 				# Write the data to the YAML file
-				self.pose_output["update_time"] = time.time_ns()
+				self.pose_output["updatetime"] = time.time_ns()
 				with open(self.filename, "w") as f:
 					yaml.dump(self.pose_output, f)
 				self.pose_output = {}	
@@ -645,7 +645,7 @@ class MapDrive(Node):
 		goal.pose.orientation.z = angle_quat[2]
 		goal.pose.orientation.w = angle_quat[3]
 
-		# sanity check a valid path exists
+		# sanity check for a valid path
 		plan = self.getPath(start, goal) # plan = self.move_base_plan(start, goal, tolerance).plan
 
 		if plan == None:
@@ -777,7 +777,7 @@ class MapDrive(Node):
 			angle = atan2(pos_diff[1], pos_diff[0])
 
 			# self.get_logger().info("o_o 7: ") # -------------------------------------
-
+			#'''
 			if abs(pos_diff[0]) < self.local_costmap_width/2.0 and abs(pos_diff[1]) < self.local_costmap_height/2.0:
 				# goal is visible in local costmap, check path is clear
 		#		self.get_logger().info("o_o 8: ") # -------------------------------------
@@ -787,6 +787,7 @@ class MapDrive(Node):
 				if closest is None:
 					continue
 				pos_next = closest
+			#'''  
 
 			# self.get_logger().info("o_o 10: ") # -------------------------------------
 			self.write_pose(pos_last[0], pos_last[1], angle) # rotate in direction of next goal
@@ -814,20 +815,22 @@ class MapDrive(Node):
 
 
 
-	def calculate_waypoints(self, x1, y1, x2, y2, angle_quat):
-		delta_x = (x2 - x1) / (self.num_midpoints + 1)
-		delta_y = (y2 - y1) / (self.num_midpoints + 1)
-		for i in range(self.num_midpoints):
-			waypoint_x = x1 + (i + 1) * delta_x
-			waypoint_y = y1 + (i + 1) * delta_y
-			self.get_logger().info("- including points: (%f, %f)" % (waypoint_x, waypoint_y))
+	def add_more_waypoints(self, x1, y1, x2, y2, angle_quat, num_waypoints):	
+		# Calculate the increment values for x and y coordinates
+		increment_x = (x2 - x1) / (num_waypoints + 1)
+		increment_y = (y2 - y1) / (num_waypoints + 1)
+		for i in range(num_waypoints):
+			# Calculate the new waypoint coordinates
+			new_x = x1 + (i + 1) * increment_x
+			new_y = y1 + (i + 1) * increment_y
+			# self.get_logger().info("-------- including points: (%f, %f)" % (new_x, new_y))
 			# Append the mid waypoint to the data dictionary with the index as the key
 			index = len(self.pose_output) + 1
 			self.pose_output[index] = {
 									"position":
 									{
-										"x": waypoint_x,
-										"y": waypoint_y,
+										"x": float(new_x),
+										"y": float(new_y),
 										"z": 0.0
 									},
 									"orientation":
@@ -840,7 +843,6 @@ class MapDrive(Node):
 								} 
 
 
-
 	def write_pose(self, x, y, angle):
 		#self.get_logger().info("Moving to (%f, %f, %.0f)" % (x, y, angle*180/pi))
 
@@ -850,10 +852,14 @@ class MapDrive(Node):
 			last_index = len(self.pose_output) 
 			x1 = self.pose_output[last_index]["position"]["x"]
 			y1 = self.pose_output[last_index]["position"]["y"]
+			# Calculate the distance between the two coordinates
 			distance = math.sqrt((x - x1)**2 + (y - y1)**2)
-			if distance >= self.split_wp_dist:
-				self.get_logger().warn(" ")
-				self.calculate_waypoints(x1, y1, x, y, angle_quat)
+			# Check if the distance is greater than the minimum length
+			if distance >= self.min_wp_dist:
+				# Calculate the number of waypoints to add
+				num_waypoints = int(distance / self.min_wp_dist) * self.num_points	
+				self.get_logger().info("--x-o-x-- including (%f) points." % (num_waypoints))
+				self.add_more_waypoints(x1, y1, x, y, angle_quat, num_waypoints)
 			
 		# Append the values to the data dictionary with the index as the key
 		index = len(self.pose_output) + 1
