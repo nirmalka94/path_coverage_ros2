@@ -100,7 +100,7 @@ class MapDrive(Node):
 		self.declare_parameter("border_drive", False)
 		self.declare_parameter("base_frame", "base_footprint")
 		self.declare_parameter("num_points", 2) 
-		self.declare_parameter("min_wp_dist", 3.5) 
+		self.declare_parameter("min_wp_dist", 4.5) 
 
 		self.global_frame = self.get_parameter("global_frame").get_parameter_value().string_value 
 		self.robot_width = self.get_parameter("robot_width").get_parameter_value().double_value
