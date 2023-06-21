@@ -20,8 +20,8 @@ def generate_launch_description():
                 "costmap_max_non_lethal": 15, # <!-- Maximum costmap value to consider free --> default - "15"
                 "base_frame": "base_link", # <!-- The robots base frame --> default - "base_link"
                 "global_frame": "map",
-                "split_wp_dist": 3.5,       # <!-- The maximum distance between waypoints before a split can be considered --> default - "3.0"
-                "num_midpoints": 2          # <!-- The number of waypoints to put between any two distant waypoints --> default - "2"     
+                "min_wp_dist": 4.5,       # double <!-- The maximum distance between waypoints before a split can be considered --> default - "4.5"
+                "num_points": 2           # int <!-- The number of waypoints to put in every min_wp_dist --> default - "2"     
             }]
         ),
     ])
